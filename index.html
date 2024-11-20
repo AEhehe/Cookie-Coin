@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cookie Clicker with JSONbin</title>
+  <title>Multi-User Cookie Clicker</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -19,92 +19,160 @@
     .stats {
       margin: 20px 0;
     }
+    .hidden {
+      display: none;
+    }
   </style>
 </head>
 <body>
-  <h1>Cookie Clicker</h1>
+  <h1>Multi-User Cookie Clicker</h1>
 
-  <div class="stats">
-    <h2>Cookies: <span id="cookieCount">0</span></h2>
-    <h3>Cookies per click: <span id="cookiesPerClick">1</span></h3>
+  <!-- Login Section -->
+  <div id="loginSection">
+    <h2>Log In</h2>
+    <input type="text" id="username" placeholder="Enter your username">
+    <button onclick="login()">Log In</button>
+    <p id="loginMessage"></p>
   </div>
 
-  <button onclick="clickCookie()">🍪 Click Me!</button>
+  <!-- Game Section -->
+  <div id="gameSection" class="hidden">
+    <div class="stats">
+      <h2>Welcome, <span id="currentUser"></span>!</h2>
+      <h2>Cookies: <span id="cookieCount">0</span></h2>
+      <h3>Cookies per click: <span id="cookiesPerClick">1</span></h3>
+    </div>
 
-  <div class="upgrades">
-    <h2>Upgrades</h2>
-    <button onclick="buyUpgrade()" id="upgradeButton">Buy Upgrade (+1 per click) - Cost: <span id="upgradeCost">10</span> cookies</button>
+    <button onclick="clickCookie()">🍪 Click Me!</button>
+
+    <div class="upgrades">
+      <h2>Upgrades</h2>
+      <button onclick="buyUpgrade()" id="upgradeButton">
+        Buy Upgrade (+1 per click) - Cost: <span id="upgradeCost">10</span> cookies
+      </button>
+    </div>
+    <button onclick="logout()">Log Out</button>
   </div>
 
   <script>
     const apiKey = "your_jsonbin_api_key"; // Replace with your JSONbin API key
     const binId = "your_jsonbin_bin_id";   // Replace with your JSONbin Bin ID
 
-    let gameData = {
-      cookies: 0,
-      cookiesPerClick: 1,
-      upgradeCost: 10
-    };
+    let currentUser = null;
+    let gameData = {};
 
-    // Fetch game data from JSONbin
-    function loadGameData() {
-      fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
+    // Fetch all user data from JSONbin
+    function fetchAllUsers() {
+      return fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
         method: "GET",
         headers: {
           "X-Master-Key": apiKey
         }
       })
         .then(response => response.json())
-        .then(data => {
-          gameData = data.record;
-          updateDisplay();
-        })
-        .catch(error => console.error("Error loading game data:", error));
+        .then(data => data.record)
+        .catch(error => {
+          console.error("Error fetching data:", error);
+          return {};
+        });
     }
 
-    // Save game data to JSONbin
-    function saveGameData() {
-      fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
+    // Save all user data to JSONbin
+    function saveAllUsers(data) {
+      return fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           "X-Master-Key": apiKey
         },
-        body: JSON.stringify(gameData)
+        body: JSON.stringify(data)
       })
-        .then(() => console.log("Game data saved successfully!"))
-        .catch(error => console.error("Error saving game data:", error));
+        .then(() => console.log("User data saved successfully!"))
+        .catch(error => console.error("Error saving data:", error));
+    }
+
+    // Log in a user
+    async function login() {
+      const username = document.getElementById("username").value.trim();
+      if (!username) {
+        document.getElementById("loginMessage").innerText = "Please enter a username.";
+        return;
+      }
+
+      const allUsers = await fetchAllUsers();
+      if (!allUsers[username]) {
+        // Create a new user if they don't exist
+        allUsers[username] = {
+          cookies: 0,
+          cookiesPerClick: 1,
+          upgradeCost: 10
+        };
+        await saveAllUsers(allUsers);
+      }
+
+      currentUser = username;
+      gameData = allUsers[username];
+      document.getElementById("currentUser").innerText = currentUser;
+      showGameSection();
+      updateDisplay();
+    }
+
+    // Log out the current user
+    function logout() {
+      currentUser = null;
+      gameData = {};
+      document.getElementById("username").value = "";
+      showLoginSection();
     }
 
     // Click the cookie
-    function clickCookie() {
+    async function clickCookie() {
+      if (!currentUser) return;
       gameData.cookies += gameData.cookiesPerClick;
+      await saveCurrentUserData();
       updateDisplay();
-      saveGameData();
     }
 
     // Buy an upgrade
-    function buyUpgrade() {
+    async function buyUpgrade() {
+      if (!currentUser) return;
       if (gameData.cookies >= gameData.upgradeCost) {
         gameData.cookies -= gameData.upgradeCost;
         gameData.cookiesPerClick++;
-        gameData.upgradeCost = Math.floor(gameData.upgradeCost * 1.5); // Increase upgrade cost
+        gameData.upgradeCost = Math.floor(gameData.upgradeCost * 1.5);
+        await saveCurrentUserData();
         updateDisplay();
-        saveGameData();
       } else {
         alert("Not enough cookies!");
       }
     }
 
-    // Update the display with the current game data
+    // Save the current user's data
+    async function saveCurrentUserData() {
+      const allUsers = await fetchAllUsers();
+      allUsers[currentUser] = gameData;
+      await saveAllUsers(allUsers);
+    }
+
+    // Update the display
     function updateDisplay() {
       document.getElementById("cookieCount").innerText = gameData.cookies;
       document.getElementById("cookiesPerClick").innerText = gameData.cookiesPerClick;
       document.getElementById("upgradeCost").innerText = gameData.upgradeCost;
     }
 
-    // Initialize the game
-    loadGameData();
+    // Show the game section and hide the login section
+    function showGameSection() {
+      document.getElementById("loginSection").classList.add("hidden");
+      document.getElementById("gameSection").classList.remove("hidden");
+    }
+
+    // Show the login section and hide the game section
+    function showLoginSection() {
+      document.getElementById("loginSection").classList.remove("hidden");
+      document.getElementById("gameSection").classList.add("hidden");
+    }
   </script>
 </body>
 </html>
+
