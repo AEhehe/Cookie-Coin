@@ -3,57 +3,139 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Multi-User Cookie Clicker</title>
+  <title>Cookie Clicker</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      text-align: center;
-      padding: 20px;
+      background: #1e3a5f;
+      color: white;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
-    button {
-      font-size: 18px;
-      padding: 10px 20px;
-      margin: 10px;
+
+    h1 {
+      margin: 20px;
+    }
+
+    .game-container {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      max-width: 1200px;
+      margin: 20px auto;
+    }
+
+    /* Left Section: Big Cookie */
+    .cookie-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #cookie {
+      width: 200px;
+      height: 200px;
+      background: url('https://i.imgur.com/e6TY4MI.png') no-repeat center/contain;
+      border: none;
       cursor: pointer;
     }
+
     .stats {
-      margin: 20px 0;
+      margin-top: 20px;
     }
+
+    .stats p {
+      font-size: 18px;
+    }
+
+    /* Middle Section: Stats Panel */
+    .stats-panel {
+      background: #2b4a70;
+      padding: 20px;
+      border-radius: 10px;
+      width: 300px;
+      text-align: left;
+    }
+
+    .stats-panel h2 {
+      margin: 0 0 10px;
+    }
+
+    .stats-panel p {
+      margin: 5px 0;
+    }
+
+    /* Right Section: Store */
+    .store {
+      background: #2b4a70;
+      padding: 20px;
+      border-radius: 10px;
+      width: 300px;
+    }
+
+    .store h2 {
+      margin: 0 0 20px;
+    }
+
+    .store-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .store-item button {
+      background: #ffcc00;
+      border: none;
+      padding: 5px 10px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
     .hidden {
       display: none;
     }
   </style>
 </head>
 <body>
-  <h1>Multi-User Cookie Clicker</h1>
+  <h1>Cookie Clicker</h1>
 
-  <!-- Login Section -->
   <div id="loginSection">
-    <h2>Log In</h2>
     <input type="text" id="username" placeholder="Enter your username">
     <button onclick="login()">Log In</button>
     <p id="loginMessage"></p>
   </div>
 
-  <!-- Game Section -->
-  <div id="gameSection" class="hidden">
-    <div class="stats">
-      <h2>Welcome, <span id="currentUser"></span>!</h2>
-      <h2>Cookies: <span id="cookieCount">0</span></h2>
-      <h3>Cookies per click: <span id="cookiesPerClick">1</span></h3>
+  <div class="game-container hidden" id="gameSection">
+    <!-- Left: Cookie -->
+    <div class="cookie-section">
+      <button id="cookie" onclick="clickCookie()"></button>
+      <div class="stats">
+        <p>Cookies: <span id="cookieCount">0</span></p>
+        <p>Cookies per click: <span id="cookiesPerClick">1</span></p>
+      </div>
     </div>
 
-    <button onclick="clickCookie()">🍪 Click Me!</button>
-
-    <div class="upgrades">
-      <h2>Upgrades</h2>
-      <button onclick="buyUpgrade()" id="upgradeButton">
-        Buy Upgrade (+1 per click) - Cost: <span id="upgradeCost">10</span> cookies
-      </button>
+    <!-- Middle: Stats Panel -->
+    <div class="stats-panel">
+      <h2>Stats</h2>
+      <p>Username: <span id="currentUser"></span></p>
+      <p>Total Cookies: <span id="totalCookies">0</span></p>
+      <p>Upgrades Bought: <span id="upgradesBought">0</span></p>
     </div>
-    <button onclick="logout()">Log Out</button>
+
+    <!-- Right: Store -->
+    <div class="store">
+      <h2>Store</h2>
+      <div class="store-item">
+        <span>Upgrade (+1 CPC)</span>
+        <button onclick="buyUpgrade()">10 Cookies</button>
+      </div>
+    </div>
   </div>
-
+  
   <script>
     const apiKey = "$2a$10$lMCbbBuOmkiE0CnjxKT2lORHcVZk2bHvhS3swv5vO2sz5NtClB2rK"; // Replace with your JSONbin API key
     const binId = "673d6344ad19ca34f8ccfa3d";   // Replace with your JSONbin Bin ID
@@ -95,25 +177,21 @@
     async function login() {
       const username = document.getElementById("username").value.trim();
       if (!username) {
-        document.getElementById("loginMessage").innerText = "Please enter a username.";
+        document.getElementById("loginMessage").innerText = "Please enter a username!";
         return;
       }
 
-      const allUsers = await fetchAllUsers();
-      if (!allUsers[username]) {
-        // Create a new user if they don't exist
-        allUsers[username] = {
-          cookies: 0,
-          cookiesPerClick: 1,
-          upgradeCost: 10
-        };
-        await saveAllUsers(allUsers);
+      const users = await fetchAllUsers();
+      if (!users[username]) {
+        users[username] = { cookies: 0, cookiesPerClick: 1, totalCookies: 0, upgradesBought: 0 };
+        await saveAllUsers(users);
       }
 
       currentUser = username;
-      gameData = allUsers[username];
-      document.getElementById("currentUser").innerText = currentUser;
-      showGameSection();
+      gameData = users[username];
+      document.getElementById("currentUser").innerText = username;
+      document.getElementById("loginSection").classList.add("hidden");
+      document.getElementById("gameSection").classList.remove("hidden");
       updateDisplay();
     }
 
@@ -139,6 +217,7 @@
       if (gameData.cookies >= gameData.upgradeCost) {
         gameData.cookies -= gameData.upgradeCost;
         gameData.cookiesPerClick++;
+        gameData.upgradesBought++;
         gameData.upgradeCost = Math.floor(gameData.upgradeCost * 1.5);
         await saveCurrentUserData();
         updateDisplay();
@@ -159,6 +238,7 @@
       document.getElementById("cookieCount").innerText = gameData.cookies;
       document.getElementById("cookiesPerClick").innerText = gameData.cookiesPerClick;
       document.getElementById("upgradeCost").innerText = gameData.upgradeCost;
+      document.getElementById("upgradesBought").innerText = gameData.upgradesBought;
     }
 
     // Show the game section and hide the login section
