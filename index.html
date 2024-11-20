@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cookie Clicker with JSONbin</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+    button {
+      font-size: 18px;
+      padding: 10px 20px;
+      margin: 10px;
+      cursor: pointer;
+    }
+    .stats {
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Cookie Clicker</h1>
+
+  <div class="stats">
+    <h2>Cookies: <span id="cookieCount">0</span></h2>
+    <h3>Cookies per click: <span id="cookiesPerClick">1</span></h3>
+  </div>
+
+  <button onclick="clickCookie()">🍪 Click Me!</button>
+
+  <div class="upgrades">
+    <h2>Upgrades</h2>
+    <button onclick="buyUpgrade()" id="upgradeButton">Buy Upgrade (+1 per click) - Cost: <span id="upgradeCost">10</span> cookies</button>
+  </div>
+
+  <script>
+    const apiKey = "your_jsonbin_api_key"; // Replace with your JSONbin API key
+    const binId = "your_jsonbin_bin_id";   // Replace with your JSONbin Bin ID
+
+    let gameData = {
+      cookies: 0,
+      cookiesPerClick: 1,
+      upgradeCost: 10
+    };
+
+    // Fetch game data from JSONbin
+    function loadGameData() {
+      fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
+        method: "GET",
+        headers: {
+          "X-Master-Key": apiKey
+        }
+      })
+        .then(response => response.json())
+        .then(data => {
+          gameData = data.record;
+          updateDisplay();
+        })
+        .catch(error => console.error("Error loading game data:", error));
+    }
+
+    // Save game data to JSONbin
+    function saveGameData() {
+      fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Master-Key": apiKey
+        },
+        body: JSON.stringify(gameData)
+      })
+        .then(() => console.log("Game data saved successfully!"))
+        .catch(error => console.error("Error saving game data:", error));
+    }
+
+    // Click the cookie
+    function clickCookie() {
+      gameData.cookies += gameData.cookiesPerClick;
+      updateDisplay();
+      saveGameData();
+    }
+
+    // Buy an upgrade
+    function buyUpgrade() {
+      if (gameData.cookies >= gameData.upgradeCost) {
+        gameData.cookies -= gameData.upgradeCost;
+        gameData.cookiesPerClick++;
+        gameData.upgradeCost = Math.floor(gameData.upgradeCost * 1.5); // Increase upgrade cost
+        updateDisplay();
+        saveGameData();
+      } else {
+        alert("Not enough cookies!");
+      }
+    }
+
+    // Update the display with the current game data
+    function updateDisplay() {
+      document.getElementById("cookieCount").innerText = gameData.cookies;
+      document.getElementById("cookiesPerClick").innerText = gameData.cookiesPerClick;
+      document.getElementById("upgradeCost").innerText = gameData.upgradeCost;
+    }
+
+    // Initialize the game
+    loadGameData();
+  </script>
+</body>
+</html>
